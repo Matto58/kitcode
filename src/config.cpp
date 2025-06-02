@@ -26,6 +26,7 @@ bool loadConfig(string filename, kcconfig *config) {
         else {
             if (key == "font") config->font = value;
             if (key == "fontsize") config->fontsize = stof(value);
+            if (key == "scrollsensitivity") config->scrollsensitivity = stof(value);
         }
     }
     file.close();

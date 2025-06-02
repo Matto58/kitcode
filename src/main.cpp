@@ -11,6 +11,7 @@ using namespace std;
 int winwidth = 1600, winheight = 900;
 size_t cx = 0, cy = 0;
 vector<string> file{""};
+int scrollvalue = 0;
 
 SDL_Window *window;
 SDL_Renderer *renderer;
@@ -119,6 +120,9 @@ void drawEditor() {
 				}
 			}
 		}
+		else if (e.type == SDL_EVENT_MOUSE_WHEEL) {
+			scrollvalue += e.wheel.y * userconfig.scrollsensitivity;
+		}
 	}
 	SDL_SetRenderDrawColor(renderer, UWKCC(userconfig.bgcolor), SDL_ALPHA_OPAQUE);
 	SDL_RenderFillRect(renderer, NULL);
@@ -131,12 +135,12 @@ void drawEditor() {
 		linenum = TTF_CreateText(textengine, font, lineIDstr.c_str(), lineIDstr.length());
 		if (lineID == cy) TTF_SetTextColor(linenum, UWKCC(userconfig.lightgraytxt), SDL_ALPHA_OPAQUE);
 		else TTF_SetTextColor(linenum, UWKCC(userconfig.graytxt), SDL_ALPHA_OPAQUE);
-		TTF_DrawRendererText(linenum, 4, fheight*lineID + 4);
+		TTF_DrawRendererText(linenum, 4, fheight*lineID + 4 + scrollvalue);
 		TTF_DestroyText(linenum);
 
 		line = TTF_CreateText(textengine, font, linestr.c_str(), linestr.length());
 		TTF_SetTextColor(line, UWKCC(userconfig.txtcolor), SDL_ALPHA_OPAQUE);
-		TTF_DrawRendererText(line, 64, fheight*lineID + 4);
+		TTF_DrawRendererText(line, 64, fheight*lineID + 4 + scrollvalue);
 		TTF_DestroyText(line);
 
 		lineID++;
@@ -148,7 +152,7 @@ void drawEditor() {
 	int cxrendered;
 	TTF_GetTextSize(clippedLine, &cxrendered, NULL);
 	TTF_SetTextColor(cursor, UWKCC(userconfig.lightgraytxt), SDL_ALPHA_OPAQUE);
-	TTF_DrawRendererText(cursor, 64+cxrendered, fheight*cy + 4);
+	TTF_DrawRendererText(cursor, 64 + cxrendered, fheight*cy + 4 + scrollvalue);
 	TTF_DestroyText(cursor);
 	TTF_DestroyText(clippedLine);
 }

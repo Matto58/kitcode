@@ -16,6 +16,7 @@ struct kcconfig {
     kccolor txtcolor = {255, 255, 255};
     kccolor graytxt = {127, 127, 127};
     kccolor lightgraytxt = {191, 191, 191};
+    float scrollsensitivity = 25;
 };
 
 bool loadConfig(string filename, kcconfig *config);
