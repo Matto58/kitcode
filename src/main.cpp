@@ -26,29 +26,6 @@ bool running = true;
 kcconfig userconfig;
 
 string filepickerpath = "untitled";
-/*
-filesystem::path filepickerdir;
-struct filepickerentry {
-	bool isDir;
-	filesystem::path path;
-	string customDisplay = "";
-	bool useCustomDisplay = false;
-};
-vector<filepickerentry> filepickerlisting{};
-// filepickerselection is the dir, filepickerinput is the inputted filename when showFlnameInput in filePickerBase is true
-string filepickerselection, filepickerinput;
-
-void navigateFilePicker() {
-	//cout << "navigateFilePicker\n";
-	filepickerlisting.clear();
-	filepickerlisting.push_back({true, filepickerdir.parent_path(), "..", true});
-	for (auto &entry : filesystem::directory_iterator(filepickerdir)) {
-		//cout << entry.path() << "\n";
-		filepickerlisting.push_back({entry.is_directory(), entry.path()});
-	}
-	//sort(filepickerlisting.begin(), filepickerlisting.end());
-}
-*/
 
 enum kcscene { titlemenu, editor, openfl, savefl };
 kcscene scene;
@@ -152,6 +129,7 @@ void drawEditor() {
 	SDL_SetRenderDrawColor(renderer, UWKCC(userconfig.bgcolor), SDL_ALPHA_OPAQUE);
 	SDL_RenderFillRect(renderer, NULL);
 
+	// todo: don't render offscreen text
 	int fheight = TTF_GetFontHeight(font);
 	TTF_Text *line, *linenum;
 	size_t lineID = 0;
@@ -182,79 +160,6 @@ void drawEditor() {
 	TTF_DestroyText(clippedLine);
 }
 
-void filePickerBase(string actionName, bool showFlnameInput) {
-	return; // NUKING, using nativefiledialog now
-
-	/*
-	SDL_Point cliccykitty = {-1, -1};
-	while (SDL_PollEvent(&e)) {
-		if (e.type == SDL_EVENT_QUIT) running = false;
-		else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
-			cliccykitty.x = e.button.x;
-			cliccykitty.y = e.button.y;
-			cout << "DEBUG: mouse button up event @ " << to_string(cliccykitty.x) << ", " << to_string(cliccykitty.y) << "\n";
-		}
-	}
-
-	SDL_SetRenderDrawColor(renderer, UWKCC(userconfig.bgcolor), SDL_ALPHA_OPAQUE);
-	SDL_RenderFillRect(renderer, NULL);
-
-	string headerstr = actionName + " | " + filepickerdir.generic_string();
-	TTF_Text *header = TTF_CreateText(textengine, headerfont, headerstr.c_str(), headerstr.length());
-	TTF_SetTextColor(header, UWKCC(userconfig.txtcolor), SDL_ALPHA_OPAQUE);
-	int listingmargin;
-	TTF_GetTextSize(header, NULL, &listingmargin);
-	listingmargin += 6;
-	TTF_DrawRendererText(header, 4, 4);
-	TTF_DestroyText(header);
-
-	TTF_Text *pathname;
-	int currentheight = 0;
-
-	filesystem::path newpath;
-	bool newpathbool = false;
-
-	for (auto &entry : filepickerlisting) {
-		string displayedpath = entry.path.filename().string();
-		if (entry.isDir) displayedpath += "/";
-
-		SDL_Rect pathrect{};
-		pathrect.x = 4;
-		pathrect.y = listingmargin + currentheight;
-		if (entry.useCustomDisplay)
-			pathname = TTF_CreateText(textengine, font, entry.customDisplay.c_str(), entry.customDisplay.length());
-		else
-			pathname = TTF_CreateText(textengine, font, displayedpath.c_str(), displayedpath.length());
-		TTF_SetTextColor(pathname, UWKCC(userconfig.txtcolor), SDL_ALPHA_OPAQUE);
-		TTF_DrawRendererText(pathname, pathrect.x, pathrect.y);
-		TTF_GetTextSize(pathname, &pathrect.w, &pathrect.h);
-		currentheight += pathrect.h;
-
-		if (SDL_PointInRect(&cliccykitty, &pathrect)) {
-			newpath = filepickerdir / entry.path;
-			//cout << entry.isDir << "\n" << entry.path << "\n";
-			if (!entry.isDir) {
-				file.clear();
-				ifstream f(newpath);
-				string line;
-				while (!f.eof()) {
-					getline(f, line);
-					file.push_back(line);
-				}
-				cx = 0; cy = 0;
-				switchScene(editor);
-			}
-			else newpathbool = true;
-		}
-
-		TTF_DestroyText(pathname);
-	}
-
-	filepickerdir = newpath;
-	if (newpathbool) navigateFilePicker();
-	*/
-}
-
 void filePickerLoadFile() {
 	file.clear();
 	ifstream f(filepickerpath);
@@ -264,7 +169,11 @@ void filePickerLoadFile() {
 		file.push_back(line);
 	}
 	cx = 0; cy = 0;
-	switchScene(editor);
+}
+void filePickerStoreFile() {
+	ofstream f(filepickerpath);
+	for (int i = 0; i < file.size(); i++)
+		f << file[i] << (i == file.size()-1 ? "" : "\n");
 }
 
 void filePickerOpen() {
@@ -275,12 +184,20 @@ void filePickerOpen() {
 		filepickerpath = outflname;
 		filePickerLoadFile();
 	}
-	else switchScene(editor);
+	switchScene(editor);
 	delete outflname;
 	// filePickerBase("Open...", false);
 }
 void filePickerSave() {
-	// TODO: implement
+	string pwd = filesystem::current_path().string();
+	char *outflname = new char[512]; // ! possibly unsafe
+	nfdresult_t result = NFD_SaveDialog("", pwd.c_str(), &outflname);
+	if (result == NFD_OKAY) {
+		filepickerpath = outflname;
+		filePickerStoreFile();
+	}
+	switchScene(editor);
+	delete outflname;
 	// filePickerBase("Save...", true);
 }
 
