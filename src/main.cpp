@@ -1,10 +1,13 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <nfd.h>
 #include <iostream>
 #include <vector>
 #include <filesystem>
 #include <algorithm>
 #include "config.hpp"
+
+#define F(p,v)((p&v)==v)
 
 using namespace std;
 
@@ -22,6 +25,8 @@ bool running = true;
 
 kcconfig userconfig;
 
+string filepickerpath = "untitled";
+/*
 filesystem::path filepickerdir;
 struct filepickerentry {
 	bool isDir;
@@ -30,7 +35,8 @@ struct filepickerentry {
 	bool useCustomDisplay = false;
 };
 vector<filepickerentry> filepickerlisting{};
-string filepickerselection;
+// filepickerselection is the dir, filepickerinput is the inputted filename when showFlnameInput in filePickerBase is true
+string filepickerselection, filepickerinput;
 
 void navigateFilePicker() {
 	//cout << "navigateFilePicker\n";
@@ -42,19 +48,25 @@ void navigateFilePicker() {
 	}
 	//sort(filepickerlisting.begin(), filepickerlisting.end());
 }
+*/
 
 enum kcscene { titlemenu, editor, openfl, savefl };
 kcscene scene;
 void switchScene(kcscene newscene) {
-	if (newscene == editor || newscene == savefl)
+	if (newscene == editor) {
+		string newtitle = "KitCode | " + filepickerpath;
+		SDL_SetWindowTitle(window, newtitle.c_str());
 		SDL_StartTextInput(window);
+	}
 	else
 		SDL_StopTextInput(window);
 
+	/*
 	if (newscene == openfl || newscene == savefl) {
 		filepickerdir = filesystem::current_path();
 		navigateFilePicker();
 	}
+	*/
 	
 	scene = newscene;
 }
@@ -65,6 +77,17 @@ int errS(int n, const char *s) {
 }
 int err(int n) {
 	return errS(n, SDL_GetError());
+}
+
+void handleGlobalShortcuts(SDL_Event e) {
+	cout << "hit handleGlobalShortcuts\n";
+	if (F(e.key.mod, SDL_KMOD_LCTRL) || F(e.key.mod, SDL_KMOD_RCTRL)) {
+		cout << "hit if statement\n";
+		if (e.key.key == SDLK_O)
+			switchScene(openfl);
+		else if (e.key.key == SDLK_S)
+			switchScene(savefl);
+	}
 }
 
 void drawEditor() {
@@ -119,6 +142,8 @@ void drawEditor() {
 					file[cy] = file[cy].substr(0, cx) + file[cy].substr(cx+1);
 				}
 			}
+
+			handleGlobalShortcuts(e);
 		}
 		else if (e.type == SDL_EVENT_MOUSE_WHEEL) {
 			scrollvalue += e.wheel.y * userconfig.scrollsensitivity;
@@ -157,8 +182,10 @@ void drawEditor() {
 	TTF_DestroyText(clippedLine);
 }
 
-// todo: move all of this and other file picker related functions into filepicker.cpp
 void filePickerBase(string actionName, bool showFlnameInput) {
+	return; // NUKING, using nativefiledialog now
+
+	/*
 	SDL_Point cliccykitty = {-1, -1};
 	while (SDL_PollEvent(&e)) {
 		if (e.type == SDL_EVENT_QUIT) running = false;
@@ -225,13 +252,36 @@ void filePickerBase(string actionName, bool showFlnameInput) {
 
 	filepickerdir = newpath;
 	if (newpathbool) navigateFilePicker();
+	*/
+}
+
+void filePickerLoadFile() {
+	file.clear();
+	ifstream f(filepickerpath);
+	string line;
+	while (!f.eof()) {
+		getline(f, line);
+		file.push_back(line);
+	}
+	cx = 0; cy = 0;
+	switchScene(editor);
 }
 
 void filePickerOpen() {
-	filePickerBase("Open...", false);
+	string pwd = filesystem::current_path().string();
+	char *outflname = new char[512]; // ! possibly unsafe
+	nfdresult_t result = NFD_OpenDialog("", pwd.c_str(), &outflname);
+	if (result == NFD_OKAY) {
+		filepickerpath = outflname;
+		filePickerLoadFile();
+	}
+	else switchScene(editor);
+	delete outflname;
+	// filePickerBase("Open...", false);
 }
 void filePickerSave() {
-	filePickerBase("Save...", true);
+	// TODO: implement
+	// filePickerBase("Save...", true);
 }
 
 enum kcerrs {
@@ -269,12 +319,13 @@ int main(int argc, char **argv) {
 		return err(HeaderFontNull);
 	}
 
-	filepickerlisting.reserve(10);
-	switchScene(openfl);
+	switchScene(editor);
 
 	while (running) {
 		SDL_RenderPresent(renderer);
 		if (scene == editor) drawEditor();
+		// note: both filePickerSave and filePickerOpen use nativefiledialog instead of a custom-made file dialog to simplify shit
+		//       and once a file is selected the scene switches to editor
 		else if (scene == savefl) filePickerSave();
 		else if (scene == openfl) filePickerOpen();
 		SDL_Delay(20); // 50fps capped. fuck you why would you need more
