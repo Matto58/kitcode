@@ -22,6 +22,7 @@ TTF_TextEngine *textengine;
 TTF_Font *font, *headerfont;
 SDL_Event e;
 bool running = true;
+bool changes = false;
 
 kcconfig userconfig;
 
@@ -29,10 +30,15 @@ string filepickerpath = "untitled";
 
 enum kcscene { titlemenu, editor, openfl, savefl };
 kcscene scene;
+
+void resetTitle() {
+	string newtitle = string("KitCode | ") + (changes ? "*" : "") + filepickerpath;
+	SDL_SetWindowTitle(window, newtitle.c_str());
+}
+
 void switchScene(kcscene newscene) {
 	if (newscene == editor) {
-		string newtitle = "KitCode | " + filepickerpath;
-		SDL_SetWindowTitle(window, newtitle.c_str());
+		resetTitle();
 		SDL_StartTextInput(window);
 	}
 	else
@@ -56,25 +62,56 @@ int err(int n) {
 	return errS(n, SDL_GetError());
 }
 
+bool areYouSure() {
+	SDL_MessageBoxButtonData btns[] = {{
+		.buttonID = 1,
+		.text = "pretty sure"
+	}, {
+		.buttonID = 0,
+		.text = "nah"
+	}};
+	SDL_MessageBoxData mbd = {
+		.flags = SDL_MESSAGEBOX_WARNING,
+		.window = window,
+		.title = "question!",
+		.message = "are you sure",
+		.numbuttons = 2,
+		.buttons = btns
+	};
+	int button;
+	SDL_ShowMessageBox(&mbd, &button);
+	return button;
+}
+
 void handleGlobalShortcuts(SDL_Event e) {
-	cout << "hit handleGlobalShortcuts\n";
 	if (F(e.key.mod, SDL_KMOD_LCTRL) || F(e.key.mod, SDL_KMOD_RCTRL)) {
-		cout << "hit if statement\n";
+		if (changes && areYouSure()) return;
 		if (e.key.key == SDLK_O)
 			switchScene(openfl);
 		else if (e.key.key == SDLK_S)
 			switchScene(savefl);
+		else if (e.key.key == SDLK_N) {
+			file.clear();
+			cx = 0; cy = 0;
+			filepickerpath = "untitled";
+		}
+		changes = false;
 	}
 }
 
 void drawEditor() {
 	while (SDL_PollEvent(&e)) {
-		if (e.type == SDL_EVENT_QUIT) running = false;
+		if (e.type == SDL_EVENT_QUIT) {
+			if (areYouSure()) running = false;
+		}
 		else if (e.type == SDL_EVENT_TEXT_INPUT) {
 			file[cy] = file[cy].substr(0, cx) + e.text.text + file[cy].substr(cx, file[cy].length()-cx);
 			cx++;
+			changes = true;
+			resetTitle();
 		}
 		else if (e.type == SDL_EVENT_KEY_DOWN) {
+			changes = true;
 			if (e.key.key == SDLK_BACKSPACE && !(cy == 0 && cx == 0)) {
 				if (cx > 0) {
 					file[cy] = file[cy].substr(0, cx-1) + file[cy].substr(cx);
