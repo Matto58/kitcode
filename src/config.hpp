@@ -11,7 +11,7 @@ using namespace std;
 struct kccolor { unsigned char r, g, b; };
 struct kcconfig {
     string font = "firamono.ttf", headerfont = "roboto.ttf";
-    float fontsize = 16, headerfontsize = 28;
+    float fontsize = 16, headerfontsize = 36;
     kccolor bgcolor = {15, 15, 31};
     kccolor txtcolor = {255, 255, 255};
     kccolor graytxt = {127, 127, 127};

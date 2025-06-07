@@ -28,8 +28,16 @@ kcconfig userconfig;
 
 string filepickerpath = "untitled";
 
-enum kcscene { titlemenu, editor, openfl, savefl };
-kcscene scene;
+enum kcerrs { Success, SDLInitFail, WindowNull, RendererNull, MainFontNull, TTFInitFail, HeaderFontNull };
+enum kcscene { titlemenu, editor, openfl, savefl, exitscene };
+kcscene scene, prevscene;
+
+vector<pair<string, kcscene>> titlemenucmds = {
+	make_pair("New...", editor),
+	make_pair("Open...", openfl),
+	make_pair("Exit", exitscene)
+};
+vector<pair<TTF_Text *, SDL_Rect>> commandrenders = {};
 
 void resetTitle() {
 	string newtitle = string("KitCode | ") + (changes ? "*" : "") + filepickerpath;
@@ -51,6 +59,7 @@ void switchScene(kcscene newscene) {
 	}
 	*/
 	
+	prevscene = scene;
 	scene = newscene;
 }
 
@@ -102,7 +111,7 @@ void handleGlobalShortcuts(SDL_Event e) {
 void drawEditor() {
 	while (SDL_PollEvent(&e)) {
 		if (e.type == SDL_EVENT_QUIT) {
-			if (areYouSure()) running = false;
+			if (!changes || areYouSure()) running = false;
 		}
 		else if (e.type == SDL_EVENT_TEXT_INPUT) {
 			file[cy] = file[cy].substr(0, cx) + e.text.text + file[cy].substr(cx, file[cy].length()-cx);
@@ -220,8 +229,9 @@ void filePickerOpen() {
 	if (result == NFD_OKAY) {
 		filepickerpath = outflname;
 		filePickerLoadFile();
+		switchScene(editor);
 	}
-	switchScene(editor);
+	else switchScene(prevscene);
 	delete outflname;
 	// filePickerBase("Open...", false);
 }
@@ -232,15 +242,52 @@ void filePickerSave() {
 	if (result == NFD_OKAY) {
 		filepickerpath = outflname;
 		filePickerStoreFile();
+		switchScene(editor);
 	}
-	switchScene(editor);
+	else switchScene(prevscene);
 	delete outflname;
 	// filePickerBase("Save...", true);
 }
 
-enum kcerrs {
-	Success, SDLInitFail, WindowNull, RendererNull, MainFontNull, TTFInitFail, HeaderFontNull 
-};
+void drawTitleMenu() {
+	if (commandrenders.size() == 0) {
+		int yoff = 0;
+		for (auto &cmd : titlemenucmds) {
+			TTF_Text *text = TTF_CreateText(textengine, font, cmd.first.c_str(), cmd.first.length());
+			SDL_Rect rect{};
+			TTF_GetTextSize(text, &rect.w, &rect.h);
+			rect.x = (winwidth-rect.w)/2;
+			rect.y = (winwidth-rect.h)/3 + yoff;
+			yoff += rect.h;
+			commandrenders.push_back(make_pair(text, rect));
+		}
+	}
+
+	while (SDL_PollEvent(&e)) {
+		if (e.type == SDL_EVENT_QUIT) running = false;
+		else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+			SDL_Point mouse = {e.button.x, e.button.y};
+			for (int i = 0; i < commandrenders.size(); i++) {
+				if (SDL_PointInRect(&mouse, &commandrenders[i].second))
+					switchScene(titlemenucmds[i].second);
+			}
+		}
+	}
+	SDL_SetRenderDrawColor(renderer, UWKCC(userconfig.bgcolor), SDL_ALPHA_OPAQUE);
+	SDL_RenderFillRect(renderer, NULL);
+
+	// todo: add recent files
+	// todo unrelated to this function: add plugins in lua
+
+	TTF_Text *header = TTF_CreateText(textengine, headerfont, "KitCode", 7);
+	int headerw, headerh;
+	TTF_GetTextSize(header, &headerw, &headerh);
+	TTF_DrawRendererText(header, (winwidth-headerw)/2, (winheight-headerh)/4);
+	TTF_DestroyText(header);
+
+	for (auto &p : commandrenders)
+		TTF_DrawRendererText(p.first, p.second.x, p.second.y);
+}
 
 int main(int argc, char **argv) {
 	userconfig = {};
@@ -273,7 +320,7 @@ int main(int argc, char **argv) {
 		return err(HeaderFontNull);
 	}
 
-	switchScene(editor);
+	switchScene(titlemenu);
 
 	while (running) {
 		SDL_RenderPresent(renderer);
@@ -282,8 +329,13 @@ int main(int argc, char **argv) {
 		//       and once a file is selected the scene switches to editor
 		else if (scene == savefl) filePickerSave();
 		else if (scene == openfl) filePickerOpen();
+		else if (scene == titlemenu) drawTitleMenu();
+		else if (scene == exitscene) running = false;
 		SDL_Delay(20); // 50fps capped. fuck you why would you need more
 	}
+
+	for (auto &r : commandrenders) TTF_DestroyText(r.first);
+	commandrenders.clear();
 
 	TTF_DestroyRendererTextEngine(textengine);
 	SDL_DestroyRenderer(renderer);
