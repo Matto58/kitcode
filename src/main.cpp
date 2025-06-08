@@ -8,6 +8,7 @@
 #include "config.hpp"
 
 #define F(p,v)((p&v)==v)
+#define KCVERSION "1.0-alpha1"
 
 using namespace std;
 
@@ -39,25 +40,26 @@ vector<pair<string, kcscene>> titlemenucmds = {
 };
 vector<pair<TTF_Text *, SDL_Rect>> commandrenders = {};
 
-void resetTitle() {
-	string newtitle = string("KitCode | ") + (changes ? "*" : "") + filepickerpath;
-	SDL_SetWindowTitle(window, newtitle.c_str());
+string titlestr = "KitCode v" + string(KCVERSION);
+
+void resetTitle(bool showPath) {
+	if (showPath) {
+		string newtitle = titlestr + " | " + (changes ? "*" : "") + filepickerpath;
+		SDL_SetWindowTitle(window, newtitle.c_str());
+	}
+	else SDL_SetWindowTitle(window, titlestr.c_str());
 }
 
 void switchScene(kcscene newscene) {
 	if (newscene == editor) {
-		resetTitle();
+		resetTitle(true);
 		SDL_StartTextInput(window);
 	}
 	else
 		SDL_StopTextInput(window);
 
-	/*
-	if (newscene == openfl || newscene == savefl) {
-		filepickerdir = filesystem::current_path();
-		navigateFilePicker();
-	}
-	*/
+	if (newscene == titlemenu)
+		resetTitle(false);
 	
 	prevscene = scene;
 	scene = newscene;
@@ -92,32 +94,41 @@ bool areYouSure() {
 	return button;
 }
 
-void handleGlobalShortcuts(SDL_Event e) {
+bool handleGlobalShortcuts(SDL_Event e) {
+	// OH MY GOD. so there was a bug where the shortcuts were handled twice for some reason
+	// AND I JUST REALISED IT'S CUZ THE CTRL KEYS ARE PICKED UP HERE TOO
+	// so when you press smth like ctrl+s and let go of ctrl first,
+	// what this ends up doing first is skips the ctrl+s condition
+	// AND GOES TO THE !changes || areYouSure() CONDITION
+	// BUT BECAUSE IT'S NONE OF THOSE KEYS IT JUST WRITES THE S IN THE FRAME YOU LET GO OF THE S TOO
+	// AND ONLY WHEN YOU PRESS CTRL+S, LETTING THE S GO FIRST, IT ACTUALLY PROCESSES CORRECTLY
+	// BUT LUCKILY THIS LINE BELOW FIXES IT ALL. fml 
+	if (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL) return false;
+
 	if (F(e.key.mod, SDL_KMOD_LCTRL) || F(e.key.mod, SDL_KMOD_RCTRL)) {
-		if (changes && areYouSure()) return;
-		if (e.key.key == SDLK_O)
-			switchScene(openfl);
-		else if (e.key.key == SDLK_S)
-			switchScene(savefl);
-		else if (e.key.key == SDLK_N) {
-			file.clear();
-			cx = 0; cy = 0;
-			filepickerpath = "untitled";
-		}
 		changes = false;
+		if (e.key.key == SDLK_S)
+			switchScene(savefl);
+		else if (!changes || areYouSure()) {
+			if (e.key.key == SDLK_O)
+				switchScene(openfl);
+			else if (e.key.key == SDLK_N) {
+				file.clear();
+				cx = 0; cy = 0;
+				filepickerpath = "untitled";
+			}
+		}
+		else changes = true;
+		return true;
 	}
+	return false;
 }
 
 void drawEditor() {
+	bool processedshortcut = false;
 	while (SDL_PollEvent(&e)) {
 		if (e.type == SDL_EVENT_QUIT) {
 			if (!changes || areYouSure()) running = false;
-		}
-		else if (e.type == SDL_EVENT_TEXT_INPUT) {
-			file[cy] = file[cy].substr(0, cx) + e.text.text + file[cy].substr(cx, file[cy].length()-cx);
-			cx++;
-			changes = true;
-			resetTitle();
 		}
 		else if (e.type == SDL_EVENT_KEY_DOWN) {
 			changes = true;
@@ -166,7 +177,13 @@ void drawEditor() {
 				}
 			}
 
-			handleGlobalShortcuts(e);
+			processedshortcut = handleGlobalShortcuts(e);
+		}
+		else if (e.type == SDL_EVENT_TEXT_INPUT && !processedshortcut) {
+			file[cy] = file[cy].substr(0, cx) + e.text.text + file[cy].substr(cx, file[cy].length()-cx);
+			cx++;
+			changes = true;
+			resetTitle(true);
 		}
 		else if (e.type == SDL_EVENT_MOUSE_WHEEL) {
 			scrollvalue += e.wheel.y * userconfig.scrollsensitivity;
@@ -279,7 +296,7 @@ void drawTitleMenu() {
 	// todo: add recent files
 	// todo unrelated to this function: add plugins in lua
 
-	TTF_Text *header = TTF_CreateText(textengine, headerfont, "KitCode", 7);
+	TTF_Text *header = TTF_CreateText(textengine, headerfont, titlestr.c_str(), titlestr.length());
 	int headerw, headerh;
 	TTF_GetTextSize(header, &headerw, &headerh);
 	TTF_DrawRendererText(header, (winwidth-headerw)/2, (winheight-headerh)/4);
