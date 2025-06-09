@@ -330,22 +330,19 @@ int main(int argc, char **argv) {
 	userconfig = {};
 	if (!loadConfig("config.ini", &userconfig))
 		cout << "WARNING: could not load config.ini, using default config\n";
+
+	winwidth = userconfig.width;
+	winheight = userconfig.height;
 	
 	lua_State *l = luaL_newstate();
-	dbg("loaded state! no segfault yet");
 	luaL_openlibs(l);
-	dbg("opened libs in lua! no segfault yet");
 	const luaL_Reg LUAFUNCS[] = {
 		{ "msgbox", msgbox },
 		{ NULL }
 	};
-	dbg("defined lua funcs table! no segfault yet");
 	lua_createtable(l, 1, 0);
-	dbg("created table! no segfault yet");
 	luaL_setfuncs(l, LUAFUNCS, 0);
-	dbg("set funcs into table! no segfault yet");
 	lua_setglobal(l, "kc");
-	dbg("made table global! no segfault yet");
 
 	if (!SDL_Init(SDL_INIT_VIDEO)) return err(SDLInitFail);
 	if (!TTF_Init()) return err(TTFInitFail);
