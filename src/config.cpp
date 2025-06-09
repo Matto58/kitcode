@@ -17,7 +17,7 @@ bool loadConfig(string filename, kcconfig *config) {
         if (key.length() >= 5 && key.substr(key.length()-5) == "color") {
             int r, g, b;
             sscanf(value.c_str(), "%d,%d,%d", &r, &g, &b);
-            kccolor color = {r, g, b}; // can have unintended results when r, g or b aren't within 0-255
+            kccolor color = {r%256, g%256, b%256};
             if (key == "bgcolor") config->bgcolor = color;
             if (key == "txtcolor") config->txtcolor = color;
             if (key == "graytxt") config->graytxt = color;
