@@ -1,3 +1,8 @@
 # provide your own firamono.ttf and roboto.ttf
 *.ttf
 kitcode
+
+# lua stuff
+*.o
+lua
+luac

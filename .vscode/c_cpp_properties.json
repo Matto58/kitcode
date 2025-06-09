@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/nfd/src/include"
+                "${workspaceFolder}/nfd/src/include",
+                "${workspaceFolder}/lua/src"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

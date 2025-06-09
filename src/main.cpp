@@ -1,14 +1,18 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <nfd.h>
+#include <lua.hpp>
 #include <iostream>
 #include <vector>
 #include <filesystem>
 #include <algorithm>
 #include "config.hpp"
+#include "pluginmgr.hpp"
 
 #define F(p,v)((p&v)==v)
-#define KCVERSION "1.0-alpha1"
+#define KCVERSION "1.0-alpha2"
+// 1 = yes, 0 = no
+#define USEDEBUG 1
 
 using namespace std;
 
@@ -71,6 +75,12 @@ int errS(int n, const char *s) {
 }
 int err(int n) {
 	return errS(n, SDL_GetError());
+}
+
+void dbg(string s) {
+	#ifdef USEDEBUG
+		cout << "DEBUG: " << s << "\n";
+	#endif
 }
 
 bool areYouSure() {
@@ -306,10 +316,36 @@ void drawTitleMenu() {
 		TTF_DrawRendererText(p.first, p.second.x, p.second.y);
 }
 
+#pragma region LUA FUNCS
+int msgbox(lua_State *state) {
+	const char
+		*title = luaL_checklstring(state, 1, NULL),
+		*msg = luaL_checklstring(state, 2, NULL);
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, title, msg, window);
+	return 0;
+}
+#pragma endregion
+
 int main(int argc, char **argv) {
 	userconfig = {};
 	if (!loadConfig("config.ini", &userconfig))
 		cout << "WARNING: could not load config.ini, using default config\n";
+	
+	lua_State *l = luaL_newstate();
+	dbg("loaded state! no segfault yet");
+	luaL_openlibs(l);
+	dbg("opened libs in lua! no segfault yet");
+	const luaL_Reg LUAFUNCS[] = {
+		{ "msgbox", msgbox },
+		{ NULL }
+	};
+	dbg("defined lua funcs table! no segfault yet");
+	lua_createtable(l, 1, 0);
+	dbg("created table! no segfault yet");
+	luaL_setfuncs(l, LUAFUNCS, 0);
+	dbg("set funcs into table! no segfault yet");
+	lua_setglobal(l, "kc");
+	dbg("made table global! no segfault yet");
 
 	if (!SDL_Init(SDL_INIT_VIDEO)) return err(SDLInitFail);
 	if (!TTF_Init()) return err(TTFInitFail);
@@ -337,6 +373,27 @@ int main(int argc, char **argv) {
 		return err(HeaderFontNull);
 	}
 
+	vector<kcplugin> plugins = loadPlugins("plugins/include.txt");
+	for (kcplugin &plugin : plugins) {
+		cout << "INFO: loading plugin '" << plugin.id << "'\n";
+		string path = "plugins/" + plugin.id + "/main.lua";
+		if (luaL_dofile(l, path.c_str()) != LUA_OK) {
+			cout << "WARNING: load failed! (file related reasons)\n";
+			continue;
+		}
+		
+		lua_getglobal(l, "onStart");
+		if (!lua_isfunction(l, -1)) {
+			cout << "WARNING: onStart is either nonexistent or not a function\n";
+			continue;
+		}
+		if (lua_pcall(l, 0, 1, 0) != LUA_OK) {
+			cout << "WARNING: load failed! (call related reasons)\n";
+			continue;
+		}
+		lua_pop(l, lua_gettop(l));
+	}
+
 	switchScene(titlemenu);
 
 	while (running) {
@@ -358,5 +415,6 @@ int main(int argc, char **argv) {
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
+	lua_close(l);
 	return 0;
 }
