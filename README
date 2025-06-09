@@ -1,0 +1,8 @@
+KitCode
+====
+KitCode is a simple text editor I made in SDL3. Suggestions, bug reports and
+pull requests are welcome!
+
+It is licensed under the MIT license, read LICENSE for more info.
+
+Uses Lua 5.4.8, also licensed under the MIT license, available from lua.org.
