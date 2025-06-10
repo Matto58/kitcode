@@ -3,6 +3,6 @@
 - [x] add lua plugin support
 - [x] allow comments in ini files
 - [x] width/height props in config
-- [ ] switch to sdl's method of open/save file dialogs instead of using nfd
+- [x] switch to sdl's method of open/save file dialogs instead of using nfd
 - [ ] settings menu to manage config
 - [ ] add more stuff to the plugin api

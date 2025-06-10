@@ -1,6 +1,5 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include <nfd.h>
 #include <lua.hpp>
 #include <iostream>
 #include <vector>
@@ -249,30 +248,40 @@ void filePickerStoreFile() {
 		f << file[i] << (i == file.size()-1 ? "" : "\n");
 }
 
-void filePickerOpen() {
-	string pwd = filesystem::current_path().string();
-	char *outflname = new char[512]; // ! possibly unsafe
-	nfdresult_t result = NFD_OpenDialog("", pwd.c_str(), &outflname);
-	if (result == NFD_OKAY) {
-		filepickerpath = outflname;
-		filePickerLoadFile();
-		switchScene(editor);
+void filePickerOpenCallback(void *userdata, const char * const *filelist, int filter) {
+	if (filelist == NULL) {
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Open error", SDL_GetError(), window);
+		return;
 	}
-	else switchScene(prevscene);
-	delete outflname;
+	if (filelist[0] == NULL) {
+		switchScene(prevscene);
+		return;
+	}
+	filepickerpath = filelist[0];
+	filePickerLoadFile();
+	resetTitle(true);
+}
+void filePickerOpen() {
+	SDL_ShowOpenFileDialog(filePickerOpenCallback, NULL, window, NULL, 0, NULL, false);
+	switchScene(editor);
 	// filePickerBase("Open...", false);
 }
-void filePickerSave() {
-	string pwd = filesystem::current_path().string();
-	char *outflname = new char[512]; // ! possibly unsafe
-	nfdresult_t result = NFD_SaveDialog("", pwd.c_str(), &outflname);
-	if (result == NFD_OKAY) {
-		filepickerpath = outflname;
-		filePickerStoreFile();
-		switchScene(editor);
+void filePickerSaveCallback(void *userdata, const char * const *filelist, int filter) {
+	if (filelist == NULL) {
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Save error", SDL_GetError(), window);
+		return;
 	}
-	else switchScene(prevscene);
-	delete outflname;
+	if (filelist[0] == NULL) {
+		switchScene(prevscene);
+		return;
+	}
+	filepickerpath = filelist[0];
+	filePickerStoreFile();
+	resetTitle(true);
+}
+void filePickerSave() {
+	SDL_ShowSaveFileDialog(filePickerOpenCallback, NULL, window, NULL, 0, NULL);
+	switchScene(editor);
 	// filePickerBase("Save...", true);
 }
 
