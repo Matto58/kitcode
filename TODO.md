@@ -1,7 +1,8 @@
 - [ ] don't render offscreen text
 - [ ] add list of recent files
 - [x] add lua plugin support
-- [ ] allow comments in ini files
+- [x] allow comments in ini files
 - [x] width/height props in config
 - [ ] switch to sdl's method of open/save file dialogs instead of using nfd
 - [ ] settings menu to manage config
+- [ ] add more stuff to the plugin api

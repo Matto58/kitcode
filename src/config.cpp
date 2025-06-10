@@ -1,22 +1,19 @@
 #include "config.hpp"
+#include "parseini.hpp"
+#include <iostream>
 
 bool loadConfig(string filename, kcconfig *config) {
     if (config == NULL) return false;
-    ifstream file(filename);
+    map<string, string> m = parseIni(filename);
     string line;
-    while (!file.eof()) {
-        getline(file, line);
-        string key, value;
-        for (int i = 0; i < line.length(); i++) {
-            if (line[i] == '=') {
-                value = line.substr(i+1);
-                break;
-            }
-            else key += line[i];
-        }
+    for (auto &p : m) {
+        string key = p.first, value = p.second;
         if (key.length() >= 5 && key.substr(key.length()-5) == "color") {
             int r, g, b;
-            sscanf(value.c_str(), "%d,%d,%d", &r, &g, &b);
+            if (sscanf(value.c_str(), "%d,%d,%d", &r, &g, &b) != 3) {
+                cout << "WARNING: sscanf didnt return 3 here - value=" << value << "\n";
+                continue;
+            }
             kccolor color = {r%256, g%256, b%256};
             if (key == "bgcolor") config->bgcolor = color;
             if (key == "txtcolor") config->txtcolor = color;
@@ -31,6 +28,5 @@ bool loadConfig(string filename, kcconfig *config) {
             if (key == "height") config->height = stoi(value);
         }
     }
-    file.close();
     return true;
 }
